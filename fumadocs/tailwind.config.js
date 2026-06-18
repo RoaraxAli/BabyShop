@@ -5,7 +5,7 @@ module.exports = {
     './content/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/fumadocs-ui/dist/**/*.js',
   ],
-  presets: [require('fumadocs-ui/tailwind-plugin')],
+  presets: [require('fumadocs-ui/tailwind-plugin').createPreset()],
   theme: {
     extend: {},
   },
