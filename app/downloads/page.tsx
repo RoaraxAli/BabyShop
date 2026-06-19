@@ -13,28 +13,10 @@ const downloadTargets = [
     badge: "v1.0.0-Stable"
   },
   {
-    title: "iOS App Store",
-    body: "Get the secure iOS build for your iPhone. Supports Apple Sign-In and secure checkout.",
-    actionText: "Open App Store",
-    href: "https://apps.apple.com",
-    icon: Apple,
-    color: "sky-bg",
-    badge: "iOS 15+"
-  },
-  {
-    title: "Windows Desktop",
-    body: "Desktop application targeting Windows 10/11. Includes local system support and tracking offline.",
-    actionText: "Download Windows App",
-    href: "/downloads/babyshophub-windows.zip",
-    icon: Monitor,
-    color: "lavender-bg",
-    badge: "Win 10/11"
-  },
-  {
     title: "Web Storefront",
     body: "Access the full online catalog instantly from any web browser without installation.",
     actionText: "Launch Web App",
-    href: "/shop",
+    href: "https://web.babyshop.theali.app",
     icon: Globe2,
     color: "peach-bg",
     badge: "No Install"

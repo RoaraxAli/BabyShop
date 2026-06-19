@@ -1,8 +1,9 @@
 "use client";
 
-import { Bot, Heart, Home, Package, Search, ShoppingBag, Truck, UserRound, ShoppingCart, Trash2, X, Plus, Minus, ArrowRight, ShieldCheck, HeartHandshake } from "lucide-react";
+import { Bot, Heart, Home, Package, Search, ShoppingBag, Truck, UserRound, ShoppingCart, Trash2, X, Plus, Minus, ArrowRight, ShieldCheck, HeartHandshake, Menu, Baby } from "lucide-react";
+import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
@@ -38,9 +39,23 @@ type Order = {
 
 export default function ShopPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"home" | "shop" | "wishlist" | "orders" | "assistant" | "profile">("home");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      if (["home", "shop", "wishlist", "orders", "assistant", "profile"].includes(tab)) {
+        setActiveTab(tab as any);
+      } else if (tab === 'cart') {
+        setIsCartOpen(true);
+      }
+    }
+  }, [searchParams]);
+
   // Products & Category State
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -56,6 +71,29 @@ export default function ShopPage() {
 
   // Order & Checkout State
   const [orders, setOrders] = useState<Order[]>([]);
+  const [settings, setSettings] = useState({
+    supportEmail: "support@babyshophub.com",
+    contactPhone: "+1 (555) 019-2834",
+    currencySymbol: "$",
+    enableReviews: true,
+    showOutOfStock: true,
+    requireEmailVerification: false,
+    enableFreeShipping: true,
+  });
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const snap = await getDoc(doc(db, "admin_settings", "store"));
+        if (snap.exists()) {
+          setSettings((current) => ({ ...current, ...snap.data() }));
+        }
+      } catch (err) {
+        console.error("Error loading settings:", err);
+      }
+    }
+    loadSettings();
+  }, []);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [shippingAddress, setShippingAddress] = useState("");
   const [cardName, setCardName] = useState("");
@@ -77,10 +115,83 @@ export default function ShopPage() {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [profileStatus, setProfileStatus] = useState("");
 
+  // Modals for matching Flutter profile options
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportStatus, setSupportStatus] = useState("");
+
+  async function handleSendSupport(e: React.FormEvent) {
+    e.preventDefault();
+    setSupportSending(true);
+    setSupportStatus("");
+    try {
+      // Register Zoho Support SMTP ticket document
+      await addDoc(collection(db, "mail_triggers"), {
+        to: settings.supportEmail,
+        type: "SUPPORT_CONTACT",
+        data: {
+          name: profileName || user?.displayName || "Customer",
+          email: user?.email || "",
+          subject: supportSubject.trim(),
+          message: supportMessage.trim(),
+        },
+        createdAt: serverTimestamp(),
+      });
+
+      // Write to support_tickets
+      await addDoc(collection(db, "support_tickets"), {
+        userId: user?.uid || "",
+        name: profileName || user?.displayName || "Customer",
+        email: user?.email || "",
+        subject: supportSubject.trim(),
+        message: supportMessage.trim(),
+        status: "Open",
+        replies: [],
+        createdAt: serverTimestamp(),
+      });
+
+      setSupportStatus(`Support inquiry dispatched successfully to ${settings.supportEmail} via Zoho SMTP relay server!`);
+      setSupportSubject("");
+      setSupportMessage("");
+      setTimeout(() => {
+        setIsContactOpen(false);
+        setSupportStatus("");
+      }, 2500);
+    } catch (err: any) {
+      setSupportStatus(`SMTP relay failed: ${err.message || err}`);
+    } finally {
+      setSupportSending(false);
+    }
+  }
+
   // Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) router.push("/login");
   }, [loading, router, user]);
+
+  // Handle Stripe Success Callback
+  useEffect(() => {
+    const status = searchParams.get("checkout");
+    const orderId = searchParams.get("orderId");
+    if (status === "success" && orderId) {
+      async function updateOrderStatus() {
+        try {
+          const orderDocRef = doc(db, "orders", orderId);
+          await setDoc(orderDocRef, { status: "Paid" }, { merge: true });
+          setCart([]);
+          setIsCartOpen(false);
+          alert("Order payment succeeded via Stripe! Thank you.");
+          router.replace("/shop?tab=orders");
+        } catch (err) {
+          console.error("Error updating order status:", err);
+        }
+      }
+      updateOrderStatus();
+    }
+  }, [searchParams, router]);
 
   // Load products from Firestore (with automatic seeder fallback)
   useEffect(() => {
@@ -90,7 +201,16 @@ export default function ShopPage() {
         const querySnapshot = await getDocs(collection(db, "products"));
         let fetchedProducts: Product[] = [];
         querySnapshot.forEach((docSnap) => {
-          fetchedProducts.push({ id: docSnap.id, ...docSnap.data() } as Product);
+          const docData = docSnap.data();
+          const cleanImage = docData.imageUrl || docData.image || "";
+          const priceNum = typeof docData.price === "number" ? docData.price : parseFloat(String(docData.price || "0").replace(/[^0-9.]/g, ""));
+          const cleanPrice = isNaN(priceNum) ? "0.00" : priceNum.toFixed(2);
+          fetchedProducts.push({
+            id: docSnap.id,
+            ...docData,
+            image: cleanImage,
+            price: cleanPrice,
+          } as any);
         });
 
         // Seed products if collection is completely empty
@@ -98,19 +218,26 @@ export default function ShopPage() {
           const batch = writeBatch(db);
           initialMockProducts.forEach((mockProd, idx) => {
             const newDocRef = doc(collection(db, "products"));
+            const parsedPrice = parseFloat(mockProd.price.replace("$", ""));
+            const priceVal = isNaN(parsedPrice) ? 0.0 : parsedPrice;
             const seededData = {
               name: mockProd.name,
               tag: mockProd.tag,
-              price: mockProd.price,
+              price: priceVal,
               description: mockProd.description,
               image: mockProd.image,
+              imageUrl: mockProd.image,
               category: mockProd.name.toLowerCase().includes("diaper") ? "Diapers" :
                         mockProd.name.toLowerCase().includes("puree") ? "Feeding" :
                         mockProd.name.toLowerCase().includes("onesie") ? "Clothing" : "Bath Care",
               stock: 20 + idx * 5,
             };
             batch.set(newDocRef, seededData);
-            fetchedProducts.push({ id: newDocRef.id, ...seededData } as Product);
+            fetchedProducts.push({
+              id: newDocRef.id,
+              ...seededData,
+              price: priceVal.toFixed(2)
+            } as Product);
           });
           await batch.commit();
         }
@@ -136,6 +263,20 @@ export default function ShopPage() {
         setProfileName(data.displayName || user.displayName || "");
         setProfileAddress(data.savedAddress || "");
         setMfaEnabled(data.isMfaEnabled || data.isTotpEnabled || false);
+
+        // Apply theme color
+        if (data.themeColor) {
+          document.documentElement.style.setProperty("--rose", data.themeColor);
+          document.documentElement.style.setProperty("--rose-dark", data.themeColor === "#ff8fa1" ? "#e85f78" : data.themeColor);
+        }
+        // Apply dark mode
+        if (data.darkMode !== undefined) {
+          if (data.darkMode) {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        }
       }
     });
     return () => unsub();
@@ -172,6 +313,9 @@ export default function ShopPage() {
   // Filter & Search Products
   useEffect(() => {
     let result = products;
+    if (!settings.showOutOfStock) {
+      result = result.filter((p) => p.stock > 0);
+    }
     if (selectedCategory !== "All") {
       result = result.filter((p) => p.category === selectedCategory);
     }
@@ -185,7 +329,7 @@ export default function ShopPage() {
       );
     }
     setFilteredProducts(result);
-  }, [selectedCategory, searchQuery, products]);
+  }, [selectedCategory, searchQuery, products, settings.showOutOfStock]);
 
   // Wishlist Handling
   async function toggleWishlist(productId: string) {
@@ -234,8 +378,9 @@ export default function ShopPage() {
   }
 
   const cartTotal = cart.reduce((sum, item) => {
-    const priceNum = parseFloat(item.product.price.replace("$", ""));
-    return sum + priceNum * item.quantity;
+    const priceStr = String(item.product.price || "0");
+    const priceNum = parseFloat(priceStr.replace("$", ""));
+    return sum + (isNaN(priceNum) ? 0 : priceNum) * item.quantity;
   }, 0);
 
   // Submit Order Checkout
@@ -243,10 +388,10 @@ export default function ShopPage() {
     e.preventDefault();
     if (!user?.uid || cart.length === 0) return;
     setIsCheckingOut(true);
-    setCheckoutStatus("");
+    setCheckoutStatus("Generating checkout session...");
 
     try {
-      // 1. Write the order object to Firestore
+      // 1. Write the order object to Firestore with status 'Pending'
       const orderRef = await addDoc(collection(db, "orders"), {
         userId: user.uid,
         email: user.email,
@@ -262,16 +407,36 @@ export default function ShopPage() {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Clear cart and close dialogs
-      setCart([]);
-      setIsCheckoutOpen(false);
-      setIsCartOpen(false);
-      setCheckoutStatus("");
-      setActiveTab("orders");
-      alert(`Order Placed Successfully! Your invoice ID is: ${orderRef.id}`);
-    } catch (err) {
+      // 2. Request Stripe checkout session from API route
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cart.map((item) => ({
+            product: {
+              name: item.product.name,
+              price: item.product.price,
+              image: item.product.image || "",
+            },
+            quantity: item.quantity,
+          })),
+          userId: user.uid,
+          email: user.email,
+          address: shippingAddress.trim(),
+          orderId: orderRef.id,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        // Redirect to Stripe Checkout page
+        window.location.href = data.url;
+      } else {
+        setCheckoutStatus(data.error || "Failed to initiate Stripe Checkout.");
+      }
+    } catch (err: any) {
       console.error(err);
-      setCheckoutStatus("Checkout failed. Please try again.");
+      setCheckoutStatus("Checkout initialization failed. Please try again.");
     } finally {
       setIsCheckingOut(false);
     }
@@ -328,54 +493,74 @@ export default function ShopPage() {
   if (loading || !user) return <main className="loading-page">Loading BabyShopHub...</main>;
 
   return (
-    <>
-      <Nav />
-      <main className="app-shell">
-        {/* Navigation Sidebar */}
-        <aside className="app-sidebar">
-          <strong>BabyShopHub Client</strong>
-          <nav className="sidebar-nav-links">
-            <button className={activeTab === "home" ? "active" : ""} onClick={() => setActiveTab("home")}>
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)} 
+        />
+      )}
+
+      {/* Navigation Sidebar */}
+      <aside className={`fixed md:relative z-40 h-full w-64 bg-[var(--soft)] border-r border-border flex flex-col transition-transform transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} shrink-0`}>
+        <div className="p-4 flex items-center justify-between md:hidden">
+          <span className="font-bold text-lg text-[var(--ink)] flex items-center gap-2"><Baby size={20} /> BabyShop</span>
+          <button onClick={() => setIsSidebarOpen(false)} className="p-1 rounded hover:bg-muted text-[var(--ink)]">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-2">
+          <nav className="flex flex-col gap-2">
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "home" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("home"); setIsSidebarOpen(false); }}>
               <Home size={18} /> Home
             </button>
-            <button className={activeTab === "shop" ? "active" : ""} onClick={() => setActiveTab("shop")}>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "shop" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("shop"); setIsSidebarOpen(false); }}>
               <ShoppingBag size={18} /> Shop Catalog
             </button>
-            <button className={activeTab === "wishlist" ? "active" : ""} onClick={() => setActiveTab("wishlist")}>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "wishlist" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("wishlist"); setIsSidebarOpen(false); }}>
               <Heart size={18} /> Wishlist
             </button>
-            <button className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "orders" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("orders"); setIsSidebarOpen(false); }}>
               <Truck size={18} /> Track Orders
             </button>
-            <button className={activeTab === "assistant" ? "active" : ""} onClick={() => setActiveTab("assistant")}>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "assistant" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text(--[ink)]"}`} onClick={() => { setActiveTab("assistant"); setIsSidebarOpen(false); }}>
               <Bot size={18} /> AI Assistant
             </button>
-            <button className={activeTab === "profile" ? "active" : ""} onClick={() => setActiveTab("profile")}>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "profile" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("profile"); setIsSidebarOpen(false); }}>
               <UserRound size={18} /> My Profile
             </button>
+            {user?.role === "admin" && (
+              <Link href="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-[var(--rose-dark)] hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all">
+                <ShieldCheck size={18} /> Admin Panel
+              </Link>
+            )}
           </nav>
+        </div>
 
-          {/* Cart Status in Sidebar */}
-          <div className="sidebar-cart-indicator">
-            <button onClick={() => setIsCartOpen(true)} className="sidebar-cart-btn">
-              <ShoppingCart size={18} />
-              <span>Cart ({cart.reduce((s, i) => s + i.quantity, 0)})</span>
-            </button>
-          </div>
-
-          <button className="sidebar-logout" onClick={async () => { await logout(); router.push("/login"); }}>
+        {/* Cart & Logout */}
+        <div className="p-4 border-t border-border flex flex-col gap-3 shrink-0">
+          <button onClick={() => { setIsCartOpen(true); setIsSidebarOpen(false); }} className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--soft)] text-[var(--ink)] font-bold rounded-xl border border-border shadow-sm hover:bg-[var(--line)] transition-all">
+            <ShoppingCart size={18} />
+            Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
+          </button>
+          <button className="flex items-center justify-center gap-2 w-full py-3 bg-transparent text-[var(--muted)] hover:text-[var(--rose-dark)] hover:bg-rose-50 font-bold rounded-xl transition-colors" onClick={async () => { await logout(); router.push("/login"); }}>
             Sign Out
           </button>
-        </aside>
+        </div>
+      </aside>
 
-        {/* Main Application Area */}
-        <section className="app-main">
-          {/* HEADER/TOP BAR */}
-          <div className="app-topbar">
-            <div>
-              <span className="section-kicker">Storefront Client</span>
-              <h1>Welcome, {userProfile?.displayName || user.displayName}</h1>
-            </div>
+      {/* Main Application Area */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#fff] dark:bg-zinc-950">
+        {/* HEADER/TOP BAR */}
+        <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 rounded-lg hover:bg-muted text-[var(--ink)]" onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <span className="hidden md:flex font-bold text-lg text-[var(--ink)] items-center gap-2"><Baby size={20} /> BabyShop</span>
+          </div>
+          <div className="flex items-center gap-4">
             <div className="search-pill-v2">
               <Search size={17} />
               <input
@@ -388,7 +573,14 @@ export default function ShopPage() {
                 }}
               />
             </div>
+            <div className="w-8 h-8 rounded-full bg-[var(--rose-dark)] text-white flex items-center justify-center font-bold text-sm hidden md:flex">
+              {user.displayName.slice(0, 1).toUpperCase()}
+            </div>
           </div>
+        </header>
+
+        {/* TAB CONTENT SCROLL AREA */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
 
           {/* HOME TAB */}
           {activeTab === "home" && (
@@ -469,7 +661,7 @@ export default function ShopPage() {
                     return (
                       <article className="product-premium-card" key={product.id}>
                         <div className="card-image-wrapper">
-                          <Image src={product.image} alt={product.name} width={400} height={400} />
+                          <Image src={product.image && product.image.trim() !== "" ? product.image : "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=400&q=80"} alt={product.name} width={400} height={400} />
                           <button
                             onClick={() => toggleWishlist(product.id)}
                             className={`wishlist-toggle-btn ${isWishlisted ? "active" : ""}`}
@@ -482,8 +674,14 @@ export default function ShopPage() {
                           <span className="product-tag-badge">{product.tag}</span>
                           <h3>{product.name}</h3>
                           <p>{product.description}</p>
+                          {settings.enableReviews && (
+                            <div className="flex items-center gap-1 my-1">
+                              <span className="text-amber-500 font-bold text-sm">★</span>
+                              <span className="text-xs text-[var(--muted)]">{(product as any).rating || 5.0}</span>
+                            </div>
+                          )}
                           <div className="product-card-footer">
-                            <strong className="product-price">{product.price}</strong>
+                            <strong className="product-price">{settings.currencySymbol}{product.price}</strong>
                             <button className="add-to-cart-btn" onClick={() => addToCart(product)}>
                               Add to Cart
                             </button>
@@ -513,7 +711,7 @@ export default function ShopPage() {
                     .map((product) => (
                       <article className="product-premium-card" key={product.id}>
                         <div className="card-image-wrapper">
-                          <Image src={product.image} alt={product.name} width={400} height={400} />
+                          <Image src={product.image && product.image.trim() !== "" ? product.image : "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=400&q=80"} alt={product.name} width={400} height={400} />
                           <button
                             onClick={() => toggleWishlist(product.id)}
                             className="wishlist-toggle-btn active"
@@ -526,7 +724,7 @@ export default function ShopPage() {
                           <h3>{product.name}</h3>
                           <p>{product.description}</p>
                           <div className="product-card-footer">
-                            <strong className="product-price">{product.price}</strong>
+                            <strong className="product-price">{settings.currencySymbol}{product.price}</strong>
                             <button className="add-to-cart-btn" onClick={() => addToCart(product)}>
                               Add to Cart
                             </button>
@@ -580,7 +778,7 @@ export default function ShopPage() {
                         </div>
                         <div className="order-total-sum">
                           <span>Total Paid:</span>
-                          <strong>${order.total.toFixed(2)}</strong>
+                          <strong>{settings.currencySymbol}{order.total.toFixed(2)}</strong>
                         </div>
                       </div>
                     </article>
@@ -622,48 +820,128 @@ export default function ShopPage() {
           {activeTab === "profile" && (
             <div className="tab-view profile-view animate-fade">
               <h2>My Customer Settings</h2>
-              <form className="profile-edit-form" onSubmit={saveProfile}>
-                <label>
-                  <span>Full Display Name</span>
-                  <input
-                    type="text"
-                    required
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Primary Shipping Address</span>
-                  <textarea
-                    rows={3}
-                    required
-                    placeholder="Enter default shipping street address, postal code, and country"
-                    value={profileAddress}
-                    onChange={(e) => setProfileAddress(e.target.value)}
-                  />
-                </label>
-                <div className="mfa-security-box">
-                  <div className="mfa-text">
-                    <h3>Multi-Factor Authentication (MFA)</h3>
-                    <p>Secures your shopping checkout. Dispatches a 6-digit verification code to your email account on logins and warns you about unknown device locations.</p>
-                  </div>
-                  <label className="toggle-switch">
+              <form className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mt-6 items-start w-full" onSubmit={saveProfile}>
+                {/* Left Column: Profile form edits */}
+                <div className="flex flex-col gap-5 p-6 bg-[var(--soft)] border border-border rounded-2xl">
+                  <h3 className="text-lg font-bold text-[var(--ink)] mb-2">Edit Account Details</h3>
+                  <label className="flex flex-col gap-2 font-bold text-sm text-[var(--ink)]">
+                    <span>Full Display Name</span>
                     <input
-                      type="checkbox"
-                      checked={mfaEnabled}
-                      onChange={(e) => setMfaEnabled(e.target.checked)}
+                      type="text"
+                      required
+                      className="p-3 border border-border rounded-xl bg-white dark:bg-zinc-900 text-[var(--ink)]"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
                     />
-                    <span className="toggle-slider"></span>
                   </label>
+                  <label className="flex flex-col gap-2 font-bold text-sm text-[var(--ink)]">
+                    <span>Primary Shipping Address</span>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Enter default shipping street address, postal code, and country"
+                      className="p-3 border border-border rounded-xl bg-white dark:bg-zinc-900 text-[var(--ink)]"
+                      value={profileAddress}
+                      onChange={(e) => setProfileAddress(e.target.value)}
+                    />
+                  </label>
+                  <div className="mfa-security-box flex justify-between items-center p-4 border border-border rounded-xl bg-white dark:bg-zinc-900 mt-2">
+                    <div className="mfa-text pr-4">
+                      <h4 className="font-bold text-[var(--ink)] my-0">Multi-Factor Authentication (MFA)</h4>
+                      <p className="text-xs text-[var(--muted)] m-0 mt-1">Secures your checkout. Dispatches verification code on logins.</p>
+                    </div>
+                    <label className="toggle-switch relative inline-block w-12 h-6 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={mfaEnabled}
+                        onChange={(e) => setMfaEnabled(e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div className="flex flex-col gap-3 mt-4">
+                    {profileStatus && <strong className="profile-status-alert text-center text-emerald-600">{profileStatus}</strong>}
+                    <button type="submit" className="btn-primary-gradient w-full py-3 text-white font-bold rounded-xl border-none shadow-md">
+                      Save Account Changes
+                    </button>
+                    <Link href="/profile/theme" className="btn-secondary-outline text-center block w-full justify-center">
+                      App Theme Customizer
+                    </Link>
+                  </div>
                 </div>
-                {profileStatus && <strong className="profile-status-alert">{profileStatus}</strong>}
-                <button type="submit" className="btn-primary-gradient">Save Account Changes</button>
+
+                {/* Right Column: Mobile settings-list style items */}
+                <div className="profile-settings-list flex flex-col gap-3">
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-wider mb-2">More Profile Actions</h3>
+                  
+                  <button 
+                    type="button"
+                    onClick={() => { setActiveTab("orders"); }}
+                    className="flex items-center justify-between p-4 bg-[var(--soft)] hover:bg-[var(--line)] border border-border rounded-xl transition-all text-left w-full"
+                  >
+                    <div>
+                      <strong className="block text-[var(--ink)]">My Orders</strong>
+                      <span className="text-xs text-[var(--muted)]">Track status and review your order history</span>
+                    </div>
+                    <span className="text-[var(--muted)] font-bold">→</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => { setActiveTab("wishlist"); }}
+                    className="flex items-center justify-between p-4 bg-[var(--soft)] hover:bg-[var(--line)] border border-border rounded-xl transition-all text-left w-full"
+                  >
+                    <div>
+                      <strong className="block text-[var(--ink)]">My Wishlist</strong>
+                      <span className="text-xs text-[var(--muted)]">View products you saved and check availability</span>
+                    </div>
+                    <span className="text-[var(--muted)] font-bold">→</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const el = document.querySelector('textarea[placeholder*="Enter default shipping"]');
+                      if (el) (el as HTMLElement).focus();
+                    }}
+                    className="flex items-center justify-between p-4 bg-[var(--soft)] hover:bg-[var(--line)] border border-border rounded-xl transition-all text-left w-full"
+                  >
+                    <div>
+                      <strong className="block text-[var(--ink)]">Saved Addresses</strong>
+                      <span className="text-xs text-[var(--muted)]">Manage default shipping and delivery options</span>
+                    </div>
+                    <span className="text-[var(--muted)] font-bold">→</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setIsAboutOpen(true)}
+                    className="flex items-center justify-between p-4 bg-[var(--soft)] hover:bg-[var(--line)] border border-border rounded-xl transition-all text-left w-full"
+                  >
+                    <div>
+                      <strong className="block text-[var(--ink)]">About Us</strong>
+                      <span className="text-xs text-[var(--muted)]">Read about BabyShopHub and our clinical safety standards</span>
+                    </div>
+                    <span className="text-[var(--muted)] font-bold">→</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setIsContactOpen(true)}
+                    className="flex items-center justify-between p-4 bg-[var(--soft)] hover:bg-[var(--line)] border border-border rounded-xl transition-all text-left w-full"
+                  >
+                    <div>
+                      <strong className="block text-[var(--ink)]">Contact Customer Support</strong>
+                      <span className="text-xs text-[var(--muted)]">Get in touch with support via Zoho SMTP inquiry</span>
+                    </div>
+                    <span className="text-[var(--muted)] font-bold">→</span>
+                  </button>
+                </div>
               </form>
             </div>
           )}
-        </section>
+        </div>
       </main>
-
       {/* SHOPPING CART DRAWER (SLIDE OUT) */}
       {isCartOpen && (
         <div className="cart-drawer-overlay">
@@ -688,7 +966,7 @@ export default function ShopPage() {
                 <div className="cart-items-list">
                   {cart.map((item) => (
                     <div className="cart-item-card" key={item.product.id}>
-                      <Image src={item.product.image} alt={item.product.name} width={80} height={80} />
+                      <Image src={item.product.image && item.product.image.trim() !== "" ? item.product.image : "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=80&q=80"} alt={item.product.name} width={80} height={80} />
                       <div className="cart-item-info">
                         <h3>{item.product.name}</h3>
                         <strong className="cart-item-price">{item.product.price}</strong>
@@ -708,12 +986,14 @@ export default function ShopPage() {
                 <div className="cart-summary-footer">
                   <div className="summary-row">
                     <span>Subtotal:</span>
-                    <strong>${cartTotal.toFixed(2)}</strong>
+                    <strong>{settings.currencySymbol}{cartTotal.toFixed(2)}</strong>
                   </div>
-                  <div className="summary-row">
-                    <span>Shipping:</span>
-                    <strong className="text-green">FREE</strong>
-                  </div>
+                  {settings.enableFreeShipping && (
+                    <div className="summary-row">
+                      <span>Shipping:</span>
+                      <strong className="text-green">FREE</strong>
+                    </div>
+                  )}
                   <button
                     className="checkout-btn"
                     onClick={() => {
@@ -739,7 +1019,7 @@ export default function ShopPage() {
               <button className="close-btn" onClick={() => setIsCheckoutOpen(false)}>×</button>
             </div>
             <form onSubmit={handleCheckout} className="checkout-form">
-              <label>
+              <label style={{ gridColumn: "span 2" }}>
                 <span>Delivery Shipping Address</span>
                 <input
                   type="text"
@@ -750,65 +1030,18 @@ export default function ShopPage() {
                 />
               </label>
 
-              <div className="payment-credit-section">
-                <h3>Card Payment details (Simulated)</h3>
-                <label>
-                  <span>Name on Card</span>
-                  <input
-                    type="text"
-                    required
-                    value={cardName}
-                    onChange={(e) => setCardName(e.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Card Number</span>
-                  <input
-                    type="text"
-                    required
-                    maxLength={16}
-                    placeholder="4111 2222 3333 4444"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                  />
-                </label>
-                <div className="card-row-double">
-                  <label>
-                    <span>Expiry Date</span>
-                    <input
-                      type="text"
-                      required
-                      placeholder="MM/YY"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span>CVV</span>
-                    <input
-                      type="password"
-                      required
-                      maxLength={3}
-                      placeholder="123"
-                      value={cardCvv}
-                      onChange={(e) => setCardCvv(e.target.value)}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="checkout-totals">
+              <div className="checkout-totals" style={{ gridColumn: "span 2" }}>
                 <div><span>Total Items:</span><strong>{cart.reduce((s, i) => s + i.quantity, 0)}</strong></div>
-                <div><span>Total Price:</span><strong>${cartTotal.toFixed(2)}</strong></div>
+                <div><span>Total Price:</span><strong>{settings.currencySymbol}{cartTotal.toFixed(2)}</strong></div>
               </div>
 
-              {checkoutStatus && <strong className="checkout-error-text">{checkoutStatus}</strong>}
-              <div className="checkout-actions">
+              {checkoutStatus && <strong className="checkout-error-text" style={{ gridColumn: "span 2" }}>{checkoutStatus}</strong>}
+              <div className="checkout-actions" style={{ gridColumn: "span 2" }}>
                 <button type="button" className="btn-cancel-btn" onClick={() => setIsCheckoutOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn-submit-btn" disabled={isCheckingOut}>
-                  {isCheckingOut ? "Processing..." : `Pay $${cartTotal.toFixed(2)}`}
+                  {isCheckingOut ? "Processing..." : `Proceed to Stripe Checkout (${settings.currencySymbol}${cartTotal.toFixed(2)})`}
                 </button>
               </div>
             </form>
@@ -816,8 +1049,76 @@ export default function ShopPage() {
         </div>
       )}
 
-      <Footer />
-    </>
+      {/* ABOUT US MODAL */}
+      {isAboutOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card animate-scale-up p-6 relative">
+            <div className="modal-header">
+              <h2>About BabyShopHub</h2>
+              <button className="close-btn" onClick={() => setIsAboutOpen(false)}>×</button>
+            </div>
+            <div className="p-4 space-y-4 text-[var(--ink)]">
+              <p>Welcome to <strong>BabyShopHub</strong>, your trusted destination for clinical-grade baby essentials and parent support.</p>
+              <p>Our products match strict pediatric dermatological standards. Every clothing item is made with organic cotton and non-toxic dyes, and our feeding essentials are 100% organic and free of synthetic fillers or added sugar.</p>
+              <p>We are dedicated to helping parents navigate the early years with premium, clean products and AI-powered recommendations.</p>
+              <div className="mt-6 flex justify-end">
+                <button className="btn-primary-gradient px-4 py-2 text-white rounded-xl border-none" onClick={() => setIsAboutOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTACT SUPPORT MODAL */}
+      {isContactOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card animate-scale-up p-6">
+            <div className="modal-header">
+              <h2>Contact Customer Support</h2>
+              <button className="close-btn" onClick={() => setIsContactOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleSendSupport} className="checkout-form p-4">
+              <p className="text-sm text-[var(--muted)] mb-4">Send a support inquiry to our team. Message will be routed through our Zoho SMTP relay server.</p>
+              <label className="flex flex-col gap-2 mb-4">
+                <span>Subject</span>
+                <input
+                  type="text"
+                  required
+                  placeholder="Subject of inquiry"
+                  className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]"
+                  value={supportSubject}
+                  onChange={(e) => setSupportSubject(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-2 mb-4">
+                <span>Message Details</span>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Explain your problem or questions in detail..."
+                  className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]"
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                />
+              </label>
+
+              {supportStatus && <strong className="profile-status-alert text-emerald-600 block my-2">{supportStatus}</strong>}
+
+              <div className="checkout-actions mt-4 flex gap-3">
+                <button type="button" className="btn-cancel-btn flex-1" onClick={() => setIsContactOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit-btn flex-1" disabled={supportSending}>
+                  {supportSending ? "Sending via SMTP..." : "Send Inquiry"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

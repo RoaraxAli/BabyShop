@@ -1,17 +1,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Scoped resets for fumadocs since we disabled preflight */
-.docs-page button {
+button {
   background: transparent;
   border: none;
   padding: 0;
   cursor: pointer;
 }
-.docs-page input {
+input {
   background: transparent;
 }
-.docs-page a {
+a {
   text-decoration: inherit;
   color: inherit;
+}
+
+html.dark body {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+html:not(.dark) pre {
+  background-color: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+html:not(.dark) code {
+  color: #18181b !important;
 }

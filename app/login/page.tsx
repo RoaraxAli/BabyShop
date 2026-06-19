@@ -18,12 +18,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push(user.role === "admin" ? "/admin" : "/shop");
+      router.push(user.role === "admin" ? "/admin" : "/shop?tab=home");
     }
   }, [user, authLoading, router]);
 
   async function routeByRole(profile: { role: string }) {
-    router.push(profile.role === "admin" ? "/admin" : "/shop");
+    router.push(profile.role === "admin" ? "/admin" : "/shop?tab=home");
   }
 
   async function onSubmit(event: FormEvent) {

@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, Download, Heart, ShieldCheck, Star, ShoppingBag, Baby, Sparkles } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 
@@ -130,17 +131,17 @@ export default function HomePage() {
             <div className="banner-text">
               <h2>Ready to shop? Get the App.</h2>
               <p>
-                Download BabyShopHub on Android, iOS, Windows, or shop online directly on our modern web platform. Keep your nursery fully stocked.
+                Download BabyShopHub on Android, Windows, or shop online directly on web.babyshop.theali.app. Keep your nursery fully stocked.
               </p>
               <div className="banner-buttons">
-                <a className="button dark-rounded" href="/downloads">
+                <Link className="button dark-rounded" href="/downloads">
                   <Download size={18} />
                   Get Downloads
-                </a>
-                <a className="button light-rounded" href="/docs/documentation">
+                </Link>
+                <Link className="button light-rounded" href="/docs/documentation">
                   <BookOpen size={18} />
                   Read Setup Docs
-                </a>
+                </Link>
               </div>
             </div>
             <div className="banner-icon-bg">👶</div>

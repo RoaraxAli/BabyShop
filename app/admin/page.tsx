@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, LogOut, PackagePlus, ReceiptText, Settings, Shield, UsersRound, Wrench, Plus, Edit2, Trash2, ArrowRight, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { Home, LogOut, PackagePlus, ReceiptText, Settings, Shield, UsersRound, Wrench, Plus, Edit2, Trash2, ArrowRight, DollarSign, CheckCircle, Clock, Menu, X, Baby } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
@@ -54,15 +54,17 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"dashboard" | "products" | "orders" | "users" | "support" | "settings">("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Settings state
   const [settings, setSettings] = useState({
     supportEmail: "support@babyshophub.com",
     contactPhone: "+1 (555) 019-2834",
     currencySymbol: "$",
-    reviewsEnabled: true,
+    enableReviews: true,
     showOutOfStock: true,
     requireEmailVerification: false,
+    enableFreeShipping: true,
   });
   const [settingsSavedStatus, setSettingsSavedStatus] = useState("");
 
@@ -110,7 +112,17 @@ export default function AdminPage() {
 
     const unsubProducts = onSnapshot(collection(db, "products"), (snap) => {
       const list: Product[] = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Product));
+      snap.forEach((d) => {
+        const data = d.data();
+        const cleanImage = data.imageUrl || data.image || "";
+        const cleanPrice = typeof data.price === "number" ? `$${data.price.toFixed(2)}` : String(data.price || "$0.00");
+        list.push({
+          id: d.id,
+          ...data,
+          image: cleanImage,
+          price: cleanPrice
+        } as Product);
+      });
       setProducts(list);
     });
 
@@ -151,14 +163,19 @@ export default function AdminPage() {
   // Create or Update Product
   async function handleProductSubmit(e: FormEvent) {
     e.preventDefault();
+    const parsedPrice = parseFloat(productPrice.replace("$", ""));
+    const priceVal = isNaN(parsedPrice) ? 0.0 : parsedPrice;
+    const imgVal = productImage.trim() || "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=600&q=80";
+
     const payload = {
       name: productName.trim(),
       tag: productTag.trim(),
-      price: productPrice.startsWith("$") ? productPrice : `$${productPrice}`,
+      price: priceVal,
       category: productCategory,
       stock: Number(productStock),
       description: productDescription.trim(),
-      image: productImage.trim() || "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=600&q=80",
+      image: imgVal,
+      imageUrl: imgVal,
     };
 
     if (editingProduct) {
@@ -273,40 +290,74 @@ export default function AdminPage() {
   if (loading || !user || user.role !== "admin") return <main className="loading-page">Loading Admin Panel...</main>;
 
   return (
-    <main className="admin-page">
-      {/* Sidebar navigation */}
-      <aside className="app-sidebar">
-        <strong className="sidebar-title">
-          <Shield size={18} /> Admin Suite
-        </strong>
-        <nav className="sidebar-nav-links">
-          <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>
-            <DollarSign size={18} /> Dashboard
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)} 
+        />
+      )}
+
+      {/* Navigation Sidebar */}
+      <aside className={`fixed md:relative z-40 h-full w-64 bg-[var(--soft)] border-r border-border flex flex-col transition-transform transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} shrink-0`}>
+        <div className="p-4 flex items-center justify-between md:hidden">
+          <span className="font-bold text-lg text-[var(--ink)] flex items-center gap-2"><Shield size={20} /> Admin Panel</span>
+          <button onClick={() => setIsSidebarOpen(false)} className="p-1 rounded hover:bg-muted text-[var(--ink)]">
+            <X size={20} />
           </button>
-          <button className={activeTab === "products" ? "active" : ""} onClick={() => setActiveTab("products")}>
-            <PackagePlus size={18} /> Products
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-2">
+          <nav className="flex flex-col gap-2">
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "dashboard" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }}>
+              <DollarSign size={18} /> Dashboard
+            </button>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "products" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("products"); setIsSidebarOpen(false); }}>
+              <PackagePlus size={18} /> Products
+            </button>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "orders" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("orders"); setIsSidebarOpen(false); }}>
+              <ReceiptText size={18} /> Orders ({pendingOrders})
+            </button>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "users" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("users"); setIsSidebarOpen(false); }}>
+              <UsersRound size={18} /> Users
+            </button>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "support" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("support"); setIsSidebarOpen(false); }}>
+              <Wrench size={18} /> Support ({openTickets})
+            </button>
+            <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${activeTab === "settings" ? "bg-[var(--ink)] text-[var(--soft)] dark:text-zinc-950" : "text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--ink)]"}`} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }}>
+              <Settings size={18} /> Settings
+            </button>
+          </nav>
+        </div>
+        <div className="p-4 border-t border-border flex flex-col gap-3 shrink-0">
+          <a href="/shop" className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--soft)] text-[var(--ink)] font-bold rounded-xl border border-border shadow-sm hover:bg-[var(--line)] transition-all text-center">
+            User Panel
+          </a>
+          <button className="flex items-center justify-center gap-2 w-full py-3 bg-transparent text-[var(--muted)] hover:text-[var(--rose-dark)] hover:bg-rose-50 font-bold rounded-xl transition-all" onClick={async () => { await logout(); router.push("/login"); }}>
+            <LogOut size={18} /> Sign Out
           </button>
-          <button className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>
-            <ReceiptText size={18} /> Orders ({pendingOrders})
-          </button>
-          <button className={activeTab === "users" ? "active" : ""} onClick={() => setActiveTab("users")}>
-            <UsersRound size={18} /> Users
-          </button>
-          <button className={activeTab === "support" ? "active" : ""} onClick={() => setActiveTab("support")}>
-            <Wrench size={18} /> Support ({openTickets})
-          </button>
-          <button className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>
-            <Settings size={18} /> Settings
-          </button>
-        </nav>
-        <a href="/shop" className="sidebar-store-link">Storefront Panel</a>
-        <button className="sidebar-logout-btn" onClick={async () => { await logout(); router.push("/login"); }}>
-          <LogOut size={18} /> Logout
-        </button>
+        </div>
       </aside>
 
       {/* Main Admin Section */}
-      <section className="admin-main">
+      <main className="flex-grow flex-1 flex flex-col h-full overflow-hidden bg-[#fff] dark:bg-zinc-950 text-[var(--ink)]">
+        {/* HEADER */}
+        <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-8 bg-white dark:bg-zinc-900">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 rounded-lg hover:bg-muted text-[var(--ink)]" onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <span className="hidden md:flex font-bold text-lg text-[var(--ink)] items-center gap-2"><Shield size={20} /> Admin Control Panel</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--rose-dark)] text-white flex items-center justify-center font-bold text-sm">
+              {user.displayName.slice(0, 1).toUpperCase()}
+            </div>
+          </div>
+        </header>
+
+        {/* Scroll Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
 
 
         {/* DASHBOARD TAB */}
@@ -393,7 +444,7 @@ export default function AdminPage() {
                   <tr key={prod.id}>
                     <td>
                       <div className="table-product-cell">
-                        <Image src={prod.image} alt="" width={60} height={60} />
+                        <Image src={prod.image && prod.image.trim() !== "" ? prod.image : "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=60&q=80"} alt="" width={60} height={60} />
                         <div>
                           <strong>{prod.name}</strong>
                           <span className="desc-short">{prod.description ? prod.description.slice(0, 40) : ""}...</span>
@@ -590,7 +641,7 @@ export default function AdminPage() {
               <input value={settings.currencySymbol} onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })} />
             </label>
             <label className="check-row">
-              <input type="checkbox" checked={settings.reviewsEnabled} onChange={(e) => setSettings({ ...settings, reviewsEnabled: e.target.checked })} />
+              <input type="checkbox" checked={settings.enableReviews} onChange={(e) => setSettings({ ...settings, enableReviews: e.target.checked })} />
               Allow product ratings and feedback
             </label>
             <label className="check-row">
@@ -601,11 +652,16 @@ export default function AdminPage() {
               <input type="checkbox" checked={settings.requireEmailVerification} onChange={(e) => setSettings({ ...settings, requireEmailVerification: e.target.checked })} />
               Require email verification on user login
             </label>
+            <label className="check-row">
+              <input type="checkbox" checked={settings.enableFreeShipping} onChange={(e) => setSettings({ ...settings, enableFreeShipping: e.target.checked })} />
+              Enable free shipping promotion
+            </label>
             {settingsSavedStatus && <strong className="form-status">{settingsSavedStatus}</strong>}
             <button className="btn-save-settings">Save All Configuration</button>
           </form>
         )}
-      </section>
+        </div>
+      </main>
 
       {/* CREATE / EDIT PRODUCT MODAL */}
       {isProductModalOpen && (
@@ -615,50 +671,50 @@ export default function AdminPage() {
               <h2>{editingProduct ? "Modify Product Details" : "Create New Catalog Entry"}</h2>
               <button className="close-btn" onClick={closeProductModal}>×</button>
             </div>
-            <form onSubmit={handleProductSubmit} className="admin-product-form">
-              <label>
+            <form onSubmit={handleProductSubmit} className="checkout-form p-4">
+              <label className="flex flex-col gap-2 mb-4">
                 <span>Product Name</span>
-                <input type="text" required value={productName} onChange={(e) => setProductName(e.target.value)} />
+                <input type="text" required value={productName} onChange={(e) => setProductName(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
               </label>
-              <div className="form-row-double">
-                <label>
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <label className="flex-1 flex flex-col gap-2">
                   <span>Category</span>
-                  <select value={productCategory} onChange={(e) => setProductCategory(e.target.value)}>
+                  <select value={productCategory} onChange={(e) => setProductCategory(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]">
                     <option value="Diapers">Diapers</option>
                     <option value="Feeding">Feeding</option>
                     <option value="Clothing">Clothing</option>
                     <option value="Bath Care">Bath Care</option>
                   </select>
                 </label>
-                <label>
+                <label className="flex-1 flex flex-col gap-2">
                   <span>Stock Available</span>
-                  <input type="number" required min={0} value={productStock} onChange={(e) => setProductStock(Number(e.target.value))} />
+                  <input type="number" required min={0} value={productStock} onChange={(e) => setProductStock(Number(e.target.value))} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
                 </label>
               </div>
-              <div className="form-row-double">
-                <label>
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <label className="flex-1 flex flex-col gap-2">
                   <span>Price (USD)</span>
-                  <input type="text" required placeholder="18.99" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} />
+                  <input type="text" required placeholder="18.99" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
                 </label>
-                <label>
+                <label className="flex-1 flex flex-col gap-2">
                   <span>Marketing Tag (e.g. Best seller)</span>
-                  <input type="text" value={productTag} onChange={(e) => setProductTag(e.target.value)} />
+                  <input type="text" value={productTag} onChange={(e) => setProductTag(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
                 </label>
               </div>
-              <label>
+              <label className="flex flex-col gap-2 mb-4">
                 <span>Product Image URL</span>
-                <input type="text" placeholder="https://images.unsplash.com/..." value={productImage} onChange={(e) => setProductImage(e.target.value)} />
+                <input type="text" placeholder="https://images.unsplash.com/..." value={productImage} onChange={(e) => setProductImage(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
               </label>
-              <label>
+              <label className="flex flex-col gap-2 mb-4">
                 <span>Detailed Description</span>
-                <textarea rows={4} required value={productDescription} onChange={(e) => setProductDescription(e.target.value)} />
+                <textarea rows={4} required value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="p-3 border border-border rounded-xl bg-[var(--soft)] text-[var(--ink)]" />
               </label>
 
-              <div className="checkout-actions">
-                <button type="button" className="btn-cancel-btn" onClick={closeProductModal}>
+              <div className="checkout-actions mt-6 flex gap-3">
+                <button type="button" className="btn-cancel-btn flex-1" onClick={closeProductModal}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit-btn">
+                <button type="submit" className="btn-submit-btn flex-1">
                   {editingProduct ? "Save Changes" : "Create Product"}
                 </button>
               </div>
@@ -666,7 +722,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

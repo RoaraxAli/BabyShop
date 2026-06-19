@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --ink: #222225;
   --muted: #68686f;
@@ -14,6 +18,180 @@
   --radius: 8px;
   --radius-lg: 24px;
   --max: 1180px;
+}
+
+.dark {
+  --ink: #f4f4f5;
+  --muted: #a1a1aa;
+  --soft: #1c1917;
+  --line: #2d2a27;
+}
+
+.dark body,
+.dark main {
+  background-color: #0c0a09 !important;
+}
+
+.dark .product-premium-card,
+.dark .order-log-card,
+.dark .ai-chat-window-dashboard,
+.dark .chat-bubble-row.bot .chat-bubble,
+.dark .chat-input-form,
+.dark .checkout-form,
+.dark .modal-card,
+.dark .cart-drawer,
+.dark .profile-edit-form,
+.dark .profile-settings-list button {
+  background-color: #1c1917 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .wishlist-toggle-btn {
+  background: rgba(45, 42, 39, 0.9) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .chat-input-form input {
+  background-color: #0c0a09 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .chat-input-form button {
+  background: var(--ink) !important;
+  color: #0c0a09 !important;
+}
+
+.dark .cart-drawer-overlay,
+.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark .cart-item-card {
+  background: #292524 !important;
+  border-color: var(--line) !important;
+}
+
+.dark .quantity-controls button {
+  background: #292524 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .mfa-security-box {
+  background: #1c1917 !important;
+  border-color: var(--line) !important;
+}
+
+.dark .search-pill-v2 {
+  background: #1c1917 !important;
+  border-color: var(--line) !important;
+}
+
+.dark .search-pill-v2 input {
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+
+.dark header {
+  background-color: #0c0a09 !important;
+  border-color: var(--line) !important;
+}
+
+.dark header h1, 
+.dark header span, 
+.dark header p,
+.dark header div {
+  color: var(--ink) !important;
+}
+
+.dark .profile-settings-list button:hover {
+  background-color: #2d2a27 !important;
+}
+
+.dark .btn-secondary-outline {
+  background-color: transparent !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .btn-secondary-outline:hover {
+  background-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+
+.dark .add-to-cart-btn {
+  background-color: var(--rose-dark) !important;
+  color: white !important;
+}
+
+.dark .add-to-cart-btn:hover {
+  background-color: var(--rose) !important;
+  color: white !important;
+}
+
+.dark .btn-cancel-btn {
+  background-color: transparent !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .btn-cancel-btn:hover {
+  background-color: var(--soft) !important;
+}
+
+.dark .btn-submit-btn,
+.dark .checkout-btn {
+  background-color: var(--rose-dark) !important;
+  color: white !important;
+}
+
+.dark .btn-submit-btn:hover,
+.dark .checkout-btn:hover {
+  background-color: var(--rose) !important;
+  color: white !important;
+}
+
+.dark .catalog-filters button {
+  background: #1c1917 !important;
+  color: var(--muted) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .catalog-filters button.active {
+  background: var(--ink) !important;
+  color: #0c0a09 !important;
+}
+
+/* Sidebar hover and custom elements in dark mode */
+.dark aside {
+  background-color: #0c0a09 !important;
+  border-color: var(--line) !important;
+}
+
+.dark aside nav button {
+  color: var(--muted) !important;
+}
+
+.dark aside nav button:hover {
+  background-color: #1c1917 !important;
+  color: var(--ink) !important;
+}
+
+.dark aside nav button.bg-\[var\(--ink\)\] {
+  background-color: var(--ink) !important;
+  color: #0c0a09 !important;
+}
+
+.dark aside button.bg-white {
+  background-color: #1c1917 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.dark aside button.bg-white:hover {
+  background-color: #2d2a27 !important;
 }
 
 * {
@@ -387,6 +565,9 @@ img {
 
 .product-body {
   padding: 18px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 .product-body span {
@@ -828,35 +1009,13 @@ pre {
   padding-top: 34px;
 }
 
-.app-sidebar {
-  position: sticky;
-  top: 96px;
-  display: grid;
-  gap: 8px;
-  padding: 18px;
-  background: var(--ink);
-  color: #fff;
-  border-radius: var(--radius-lg);
-}
 
-.app-sidebar strong {
-  margin-bottom: 10px;
-}
 
-.app-sidebar a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  font-weight: 750;
-}
 
-.app-sidebar a:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
-}
+
+
+
+
 
 .app-main {
   min-width: 0;
@@ -1301,14 +1460,7 @@ pre {
 
 .auth-submit,
 .google-button,
-.app-sidebar button {
-  width: 100%;
-  min-height: 50px;
-  border: 0;
-  border-radius: 16px;
-  font-weight: 900;
-  cursor: pointer;
-}
+
 
 .auth-submit {
   color: #fff;
@@ -1350,15 +1502,7 @@ pre {
   font-weight: 900;
 }
 
-.app-sidebar button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  color: var(--ink);
-  background: #fff;
-}
+
 
 .admin-page {
   width: min(var(--max), calc(100% - 40px));
@@ -1450,9 +1594,7 @@ pre {
 
   .docs-sidebar,
   .docs-toc,
-  .app-sidebar {
-    position: static;
-  }
+  
 
   .admin-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1956,16 +2098,7 @@ pre {
   min-height: calc(100vh - 80px);
 }
 
-.app-sidebar {
-  background: var(--soft);
-  border-right: 1px solid var(--line);
-  padding: 30px 20px;
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-  top: 80px;
-  height: calc(100vh - 80px);
-}
+
 
 .sidebar-nav-links {
   display: flex;
@@ -2328,8 +2461,16 @@ pre {
   display: flex;
   gap: 16px;
   align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  padding: 16px;
+  background: var(--soft);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  transition: all 0.2s;
+}
+
+.cart-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.03);
 }
 
 .cart-item-card img {
@@ -2347,11 +2488,13 @@ pre {
   font-size: 14px;
   font-weight: 800;
   margin: 0 0 4px;
+  color: var(--ink);
 }
 
 .cart-item-price {
   font-size: 14px;
   color: var(--rose-dark);
+  font-weight: 700;
 }
 
 .quantity-controls {
@@ -2362,14 +2505,34 @@ pre {
 }
 
 .quantity-controls button {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: white;
+  color: var(--ink);
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quantity-controls button:hover {
+  background: var(--line);
+  border-color: var(--muted);
+}
+
+.dark .quantity-controls button {
+  background: #2d2a27;
+}
+
+.dark .quantity-controls button:hover {
+  background: #3e3a36;
+}
+
+.quantity-controls span {
+  font-weight: 800;
+  font-size: 14px;
 }
 
 .remove-item-btn {
@@ -2684,41 +2847,64 @@ pre {
 .checkout-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+  padding: 24px;
 }
 
 .checkout-form label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-weight: 750;
   font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .checkout-form input {
-  padding: 12px;
-  border-radius: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--soft);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.checkout-form input:focus {
+  border-color: var(--rose-dark);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(232, 95, 120, 0.15);
+}
+
+.dark .checkout-form input:focus {
+  background: #2d2a27;
 }
 
 .payment-credit-section {
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
+  padding: 20px;
+  background-color: var(--soft);
+  border-radius: 16px;
+  border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  margin-top: 4px;
 }
 
 .payment-credit-section h3 {
-  font-size: 15px;
-  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px;
 }
 
 .card-row-double {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .checkout-totals {
@@ -3250,6 +3436,39 @@ pre {
 
 .close-btn:hover {
   color: var(--ink, #18181b);
+}
+
+@media (min-width: 680px) {
+  .checkout-modal-card {
+    max-width: 850px !important;
+    width: 850px !important;
+  }
+  .checkout-form {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .checkout-form > label:first-of-type {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .checkout-form .payment-credit-section {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 0;
+  }
+  .checkout-form .checkout-totals {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+  }
+  .checkout-form .checkout-actions {
+    grid-column: span 2;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    margin-top: 8px;
+  }
 }
 
 

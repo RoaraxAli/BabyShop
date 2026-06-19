@@ -34,12 +34,17 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function checkEmailVerification(firebaseUser: User) {
-  const settingsSnap = await getDoc(doc(db, "admin_settings", "store"));
-  const requireVerification = settingsSnap.exists() ? settingsSnap.data().requireEmailVerification : false;
-  if (requireVerification && !firebaseUser.emailVerified) {
-    await sendEmailVerification(firebaseUser);
-    await signOut(auth);
-    throw new Error("EMAIL_NOT_VERIFIED");
+  try {
+    const settingsSnap = await getDoc(doc(db, "admin_settings", "store"));
+    const requireVerification = settingsSnap.exists() ? settingsSnap.data().requireEmailVerification : false;
+    if (requireVerification && !firebaseUser.emailVerified) {
+      await sendEmailVerification(firebaseUser);
+      await signOut(auth);
+      throw new Error("EMAIL_NOT_VERIFIED");
+    }
+  } catch (err: any) {
+    if (err.message === "EMAIL_NOT_VERIFIED") throw err;
+    // Ignore Firestore permission errors for admin_settings
   }
 }
 
@@ -89,16 +94,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // Only allow loaded user state if verified when configuration requires it
-        const settingsSnap = await getDoc(doc(db, "admin_settings", "store"));
-        const requireVerification = settingsSnap.exists() ? settingsSnap.data().requireEmailVerification : false;
+        let requireVerification = false;
+        try {
+          const settingsSnap = await getDoc(doc(db, "admin_settings", "store"));
+          requireVerification = settingsSnap.exists() ? settingsSnap.data().requireEmailVerification : false;
+        } catch (e) {
+          // Ignore permission errors
+        }
+
         if (requireVerification && !firebaseUser.emailVerified) {
           setUser(null);
+          document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          document.cookie = "auth_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         } else {
-          setUser(await loadProfile(firebaseUser));
+          const profile = await loadProfile(firebaseUser);
+          setUser(profile);
+          document.cookie = `auth_token=true; path=/; max-age=86400`;
+          document.cookie = `auth_role=${profile.role}; path=/; max-age=86400`;
         }
       } catch {
         setUser(null);
+        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = "auth_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       } finally {
         setLoading(false);
       }
@@ -114,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await checkEmailVerification(credential.user);
         const profile = await loadProfile(credential.user);
         setUser(profile);
+        document.cookie = `auth_token=true; path=/; max-age=86400`;
+        document.cookie = `auth_role=${profile.role}; path=/; max-age=86400`;
         return profile;
       },
       async register(name, email, password) {
@@ -132,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await checkEmailVerification(credential.user);
         const profile = await loadProfile(credential.user);
         setUser(profile);
+        document.cookie = `auth_token=true; path=/; max-age=86400`;
+        document.cookie = `auth_role=${profile.role}; path=/; max-age=86400`;
         return profile;
       },
       async googleLogin() {
@@ -140,11 +161,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await checkEmailVerification(credential.user);
         const profile = await loadProfile(credential.user);
         setUser(profile);
+        document.cookie = `auth_token=true; path=/; max-age=86400`;
+        document.cookie = `auth_role=${profile.role}; path=/; max-age=86400`;
         return profile;
       },
       async logout() {
         await signOut(auth);
         setUser(null);
+        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = "auth_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       },
     }),
     [loading, user],
