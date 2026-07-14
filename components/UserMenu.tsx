@@ -35,7 +35,7 @@ export function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-background border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col py-1">
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1c1917] border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col py-1">
           <div className="px-4 py-2 border-b border-border/50">
             <p className="text-sm font-semibold truncate">{user.displayName}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>

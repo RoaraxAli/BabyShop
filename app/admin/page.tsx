@@ -290,7 +290,7 @@ export default function AdminPage() {
   if (loading || !user || user.role !== "admin") return <main className="loading-page">Loading Admin Panel...</main>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-[#0c0a09]">
       {/* Mobile Sidebar Backdrop */}
       {isSidebarOpen && (
         <div 
@@ -340,9 +340,9 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Admin Section */}
-      <main className="flex-grow flex-1 flex flex-col h-full overflow-hidden bg-[#fff] dark:bg-zinc-950 text-[var(--ink)]">
+      <main className="flex-grow flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0c0a09] text-[var(--ink)]">
         {/* HEADER */}
-        <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-8 bg-white dark:bg-zinc-900">
+        <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-8 bg-white dark:bg-[#1c1917]">
           <div className="flex items-center gap-3">
             <button className="md:hidden p-2 rounded-lg hover:bg-muted text-[var(--ink)]" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={24} />

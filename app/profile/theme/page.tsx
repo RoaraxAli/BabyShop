@@ -73,7 +73,7 @@ export default function ThemeCustomizerPage() {
 
   return (
     <ProtectedRoute>
-      <main className="shop-layout bg-background min-h-screen">
+      <main className="shop-layout bg-white dark:bg-[#0c0a09] min-h-screen">
         <section className="shop-content max-w-2xl mx-auto py-12 px-4 md:px-0">
           <div className="mb-6">
             <Link href="/shop?tab=profile" className="text-[var(--rose-dark)] font-bold mb-4 inline-block hover:underline">

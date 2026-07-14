@@ -452,7 +452,7 @@ function ShopPageContent() {
   if (loading || !user) return <main className="loading-page">Loading BabyShopHub...</main>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-[#0c0a09]">
       {/* Mobile Sidebar Backdrop */}
       {isSidebarOpen && (
         <div 
@@ -510,7 +510,7 @@ function ShopPageContent() {
       </aside>
 
       {/* Main Application Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#fff] dark:bg-zinc-950">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0c0a09]">
         {/* HEADER/TOP BAR */}
         <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">

@@ -20,16 +20,42 @@
   --max: 1180px;
 }
 
+html, body {
+  background-color: #ffffff !important;
+  color: var(--ink);
+}
+
 .dark {
   --ink: #f4f4f5;
   --muted: #a1a1aa;
   --soft: #1c1917;
   --line: #2d2a27;
+  --mint: #062013;
+  --peach: #271806;
+  --sky: #08182b;
+  --lavender: #19102b;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
 
+.dark html,
 .dark body,
 .dark main {
   background-color: #0c0a09 !important;
+}
+
+.dark .download-banner-card {
+  background: linear-gradient(135deg, #1c1917, #0c0a09) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.dark .floating-card-rating {
+  background: rgba(28, 25, 23, 0.95) !important;
+  border-color: var(--line) !important;
+}
+
+.dark .premium-tag {
+  background: #27060b !important;
+  color: #ff8fa1 !important;
 }
 
 .dark .product-premium-card,
@@ -2005,8 +2031,8 @@ pre {
 }
 
 .button.dark-rounded {
-  background: white;
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--soft);
   border-radius: 999px;
   font-weight: 800;
 }
