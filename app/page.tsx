@@ -131,7 +131,7 @@ export default function HomePage() {
             <div className="banner-text">
               <h2>Ready to shop? Get the App.</h2>
               <p>
-                Download BabyShopHub on Android, Windows, or shop online directly on web.babyshop.theali.app. Keep your nursery fully stocked.
+                Download BabyShopHub on Android, or shop online directly on web.babyshop.theali.app. Keep your nursery fully stocked.
               </p>
               <div className="banner-buttons">
                 <Link className="button dark-rounded" href="/downloads">

@@ -32,7 +32,7 @@ export default function DownloadsPage() {
           <span className="section-kicker">Multi-Platform Access</span>
           <h1>Get BabyShopHub on all your devices.</h1>
           <p>
-            Experience premium infant care shopping. Keep your account synchronized across our mobile applications, desktop package, and online web client.
+            Experience premium infant care shopping. Keep your account synchronized across our Android application and online web client.
           </p>
         </section>
         

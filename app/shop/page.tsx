@@ -4,7 +4,7 @@ import { Bot, Heart, Home, Package, Search, ShoppingBag, Truck, UserRound, Shopp
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 import { useAuth } from "@/components/AuthProvider";
@@ -37,7 +37,7 @@ type Order = {
   createdAt: any;
 };
 
-export default function ShopPage() {
+function ShopPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, logout } = useAuth();
@@ -172,26 +172,7 @@ export default function ShopPage() {
     if (!loading && !user) router.push("/login");
   }, [loading, router, user]);
 
-  // Handle Stripe Success Callback
-  useEffect(() => {
-    const status = searchParams.get("checkout");
-    const orderId = searchParams.get("orderId");
-    if (status === "success" && orderId) {
-      async function updateOrderStatus() {
-        try {
-          const orderDocRef = doc(db, "orders", orderId);
-          await setDoc(orderDocRef, { status: "Paid" }, { merge: true });
-          setCart([]);
-          setIsCartOpen(false);
-          alert("Order payment succeeded via Stripe! Thank you.");
-          router.replace("/shop?tab=orders");
-        } catch (err) {
-          console.error("Error updating order status:", err);
-        }
-      }
-      updateOrderStatus();
-    }
-  }, [searchParams, router]);
+
 
   // Load products from Firestore (with automatic seeder fallback)
   useEffect(() => {
@@ -388,11 +369,11 @@ export default function ShopPage() {
     e.preventDefault();
     if (!user?.uid || cart.length === 0) return;
     setIsCheckingOut(true);
-    setCheckoutStatus("Generating checkout session...");
+    setCheckoutStatus("Placing order...");
 
     try {
-      // 1. Write the order object to Firestore with status 'Pending'
-      const orderRef = await addDoc(collection(db, "orders"), {
+      // 1. Write the order object to Firestore with status 'Paid' directly (since Stripe is removed)
+      await addDoc(collection(db, "orders"), {
         userId: user.uid,
         email: user.email,
         items: cart.map((item) => ({
@@ -403,40 +384,18 @@ export default function ShopPage() {
         })),
         total: parseFloat(cartTotal.toFixed(2)),
         address: shippingAddress.trim(),
-        status: "Pending",
+        status: "Paid",
         createdAt: serverTimestamp(),
       });
 
-      // 2. Request Stripe checkout session from API route
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((item) => ({
-            product: {
-              name: item.product.name,
-              price: item.product.price,
-              image: item.product.image || "",
-            },
-            quantity: item.quantity,
-          })),
-          userId: user.uid,
-          email: user.email,
-          address: shippingAddress.trim(),
-          orderId: orderRef.id,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.url) {
-        // Redirect to Stripe Checkout page
-        window.location.href = data.url;
-      } else {
-        setCheckoutStatus(data.error || "Failed to initiate Stripe Checkout.");
-      }
+      // 2. Clear cart and redirect
+      setCart([]);
+      setIsCheckoutOpen(false);
+      alert("Order placed successfully! Thank you.");
+      router.replace("/shop?tab=orders");
     } catch (err: any) {
       console.error(err);
-      setCheckoutStatus("Checkout initialization failed. Please try again.");
+      setCheckoutStatus("Failed to place order. Please try again.");
     } finally {
       setIsCheckingOut(false);
     }
@@ -1041,7 +1000,7 @@ export default function ShopPage() {
                   Cancel
                 </button>
                 <button type="submit" className="btn-submit-btn" disabled={isCheckingOut}>
-                  {isCheckingOut ? "Processing..." : `Proceed to Stripe Checkout (${settings.currencySymbol}${cartTotal.toFixed(2)})`}
+                  {isCheckingOut ? "Processing..." : `Place Order (${settings.currencySymbol}${cartTotal.toFixed(2)})`}
                 </button>
               </div>
             </form>
@@ -1119,6 +1078,14 @@ export default function ShopPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen bg-[var(--soft)] text-[var(--ink)]">Loading Shop...</div>}>
+      <ShopPageContent />
+    </Suspense>
   );
 }
 
